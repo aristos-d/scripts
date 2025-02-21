@@ -1,0 +1,67 @@
+#!/usr/bin/bash
+#
+# Use libguestfs and libvirt to create a qemu-based Debian 12 VM. The first
+# argument to this script will be used as the domain name for libvirt. The
+# resulting VM can be managed through any libvirt compatible tool like "virsh".
+#
+# After first boot, the VM will have an SSH server up and running. A user can
+# connect to it as the "root" user by using the SSH key stored in the file
+# <name>-root-key.
+#
+# Some error checking is included.
+#
+
+if [[ -z $1 ]]
+then
+    echo "Usage: $0 <VM-name>"
+    exit 1
+fi
+
+NAME=$1
+IMAGE=$NAME.img
+KEY=$NAME-root-key
+
+if virsh domid $NAME > /dev/null
+then
+    echo "A VM named \"$NAME\" exists. Abort."
+    exit 2
+fi
+
+if [[ -f $KEY && -f $KEY.pub ]]
+then
+    echo "SSH key pair for $NAME exists. Re-use existing key."
+else
+    # Remove in case one of the 2 files was present.
+    rm -f $KEY $KEY.pub
+    ssh-keygen -f $KEY -C root -P ""
+fi
+
+if [[ -f $IMAGE && $IMAGE -nt $KEY ]]
+then
+    echo "Image file $IMAGE exists and is newer that $KEY. Skip image creation."
+else
+    virt-builder debian-12              \
+        --size 6G                       \
+        --memsize 1024                  \
+        --format raw                    \
+        --hostname $NAME                \
+        --output $IMAGE                 \
+        --root-password password:toor   \
+        --install network-manager       \
+        --upload $KEY.pub:/root/key     \
+        --firstboot firstboot.sh
+fi
+
+virt-install                            \
+    --name $NAME                        \
+    --ram 1024                          \
+    --vcpus 2                           \
+    --disk path=$IMAGE                  \
+    --osinfo debian12                   \
+    --console pty,target_type=serial    \
+    --network type=bridge,source=virbr0 \
+    --graphics none                     \
+    --import                            \
+    --wait
+
+
