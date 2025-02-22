@@ -65,6 +65,6 @@ virt-install                            \
     --network type=bridge,source=virbr0 \
     --graphics none                     \
     --import                            \
-    --wait
+    --noautoconsole
 
 
