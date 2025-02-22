@@ -6,7 +6,10 @@
 #
 # After first boot, the VM will have an SSH server up and running. A user can
 # connect to it as the "root" user by using the SSH key stored in the file
-# <name>-root-key.
+# <name>-root-key. The VM also supports mDNS so if the host and network are
+# configured properly, a user can login with:
+#
+# ssh -i <generated-root-key> root@<name>.local
 #
 # Some error checking is included.
 #
@@ -47,7 +50,7 @@ else
         --hostname $NAME                \
         --output $IMAGE                 \
         --root-password password:toor   \
-        --install network-manager       \
+        --install network-manager,avahi-daemon  \
         --upload $KEY.pub:/root/key     \
         --firstboot firstboot.sh
 fi
